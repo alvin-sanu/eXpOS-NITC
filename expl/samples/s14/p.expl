@@ -1,0 +1,30 @@
+int main(){
+    decl
+        int a;
+        int temp;
+        int retval;
+        int isPrime; // Flag to keep logic clean
+    enddecl
+    begin
+        a = 2;
+        while (a <= 100) do
+            temp = 2;
+            isPrime = 1; // Assume prime initially
+            
+            while (temp <= (a/2)) do
+                if ( (a % temp) == 0 ) then
+                    isPrime = 0; // Found a factor, not prime
+                    break;
+                endif;
+                temp = temp + 1; // INCREASE TEMP INSIDE LOOP
+            endwhile;
+
+            if ( isPrime == 1 ) then
+                retval = exposcall("Write", -2, a);
+            endif;
+
+            a = a + 1; // INCREASE 'a' TO CHECK NEXT NUMBER
+        endwhile;
+        return 0;
+    end
+}

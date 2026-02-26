@@ -1,0 +1,19 @@
+decl
+    int arr[20];
+    int temp,n;
+enddecl
+int main(){
+    decl
+        int name,tmp,ret;
+        str tempstr;
+    enddecl
+    begin
+        tempstr = "Enter name:";
+        ret = exposcall("Write", -2, tempstr);
+        ret = exposcall("Read", -1, name);
+        tempstr = "Name:";
+        ret = exposcall("Write", -2, tempstr);
+        ret = exposcall("Write", -2, name);
+        return 0;
+    end
+}

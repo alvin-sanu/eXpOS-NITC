@@ -1,0 +1,66 @@
+alias currentPID R0;
+alias process_table_entry R1;
+alias newPID R2;
+alias curr R3;
+alias count R4;
+alias temp_pt R5;
+alias new_process_table R6;
+breakpoint;
+
+multipush(BP);
+
+currentPID = [SYSTEM_STATUS_TABLE+1];
+process_table_entry = PROCESS_TABLE + currentPID*16;
+
+//updating the values of the current process in the process table..
+
+
+[process_table_entry + 12] = SP%512;
+[process_table_entry + 14] = PTBR;
+[process_table_entry + 15] = PTLR;
+
+//calc new pid..
+
+newPID = 0;
+
+curr = currentPID + 1;
+count = 0;
+while(count<15) do
+	if(curr>=16) then	
+		curr = 1;
+	endif;
+	temp_pt = PROCESS_TABLE + curr*16;
+	if([temp_pt + 4]==CREATED || [temp_pt + 4]==READY)	then
+			newPID = curr;
+			break;
+	endif;
+	count = count + 1;
+	curr = curr + 1;
+endwhile;
+
+
+new_process_table = PROCESS_TABLE + newPID*16;
+
+//set the new process's registers...
+
+SP = [new_process_table + 11]*512 + [new_process_table + 12];
+PTBR = [new_process_table + 14];
+PTLR = [new_process_table + 15];
+
+[SYSTEM_STATUS_TABLE + 1] = newPID;
+
+//distinguidh between created and ready state...
+
+if([new_process_table + 4] == CREATED) then
+	[new_process_table + 4] = RUNNING;
+	SP = [new_process_table + 13];
+	[new_process_table + 9] = 0;
+	ireturn;
+endif;
+
+//restore old context..
+[new_process_table + 4] = RUNNING;
+multipop(BP);
+
+return;
+

@@ -1,0 +1,25 @@
+[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 13] = SP;
+SP = [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 11]*512-1;
+backup;
+alias reqPID R0;
+reqPID = [TERMINAL_STATUS_TABLE + 1];
+
+//save read value into input buffer
+
+[PROCESS_TABLE + 16*reqPID + 8] = P0;
+
+//free the terminal using the resource manager
+
+[TERMINAL_STATUS_TABLE + 0] = 0;
+alias count R5;
+count = 1;
+while(count<=15) do
+    if([PROCESS_TABLE + (count*16) + 4] == WAIT_TERMINAL) then
+        [PROCESS_TABLE + (count*16) + 4] = READY;
+    endif;
+    count = count + 1;
+endwhile;
+
+restore;
+SP = [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 13];
+ireturn;

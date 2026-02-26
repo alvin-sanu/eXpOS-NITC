@@ -1,0 +1,28 @@
+decl
+    int arr[20];
+    int temp,n;
+enddecl
+int main(){
+    decl
+        int i,j,tmp,ret;
+        str tempstr;
+    enddecl
+    begin
+        tempstr = "Enter n:";
+        ret = exposcall("Write", -2, tempstr);
+        ret = exposcall("Read", -1, n);
+        i = 0;
+        while(i<n) do
+            ret = exposcall("Read", -1, arr[i]);
+            i = i+1;
+        endwhile;
+        tempstr = "In Order:";
+        ret = exposcall("Write", -2, tempstr);
+        i = 0;
+        while( i < n ) do
+            ret = exposcall("Write", -2, arr[i]);
+            i = i + 1;
+        endwhile;
+        return 0;
+    end
+}

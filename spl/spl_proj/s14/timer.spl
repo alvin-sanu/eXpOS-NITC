@@ -1,0 +1,15 @@
+//save context of the current running program...
+//breakpoint;
+[PROCESS_TABLE + [SYSTEM_STATUS_TABLE +1]*16 + 13] = SP;
+[PROCESS_TABLE + [SYSTEM_STATUS_TABLE +1]*16 + 4] = READY;
+SP = [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 11]*512-1;
+backup;
+
+call MOD_5;
+
+//restore old context..
+restore;
+SP = [PROCESS_TABLE + [SYSTEM_STATUS_TABLE+1]*16 + 13];
+//breakpoint;
+ireturn;
+

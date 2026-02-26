@@ -1,0 +1,4 @@
+alias input R0;
+read;
+input = P0;
+print input;
