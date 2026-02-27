@@ -1,0 +1,9 @@
+alias fn R0;
+fn = [SP - 4];
+if(fn == "Alloc") then
+    if(SP>=BP) then
+        call INT_10;
+    endif;
+    [SP - 4] = BP;
+    BP = BP-1;
+endif;

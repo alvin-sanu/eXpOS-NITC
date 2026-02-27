@@ -4,7 +4,7 @@ decl
 	int val;
 enddecl
 begin
-	val = 2;
+	val = 1;
 	while ( val <= 100 ) do
 		temp = exposcall("Write", -2, val);
 		val = val+2;

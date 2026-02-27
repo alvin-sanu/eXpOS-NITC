@@ -1,0 +1,53 @@
+alias fn R1;
+
+
+if(fn == GET_FREE_PAGE) then
+    alias i R2;
+
+	[SYSTEM_STATUS_TABLE + 3] = [SYSTEM_STATUS_TABLE + 3] + 1;	
+
+	while([SYSTEM_STATUS_TABLE + 2] == 0) do
+		[PROCESS_TABLE + 16*[SYSTEM_STATUS_TABLE + 1] + 4] = WAIT_MEM;
+		multipush(R0, R1);
+		call MOD_5;
+		multipop(R0, R1);
+	endwhile;
+
+	[SYSTEM_STATUS_TABLE + 3] = [SYSTEM_STATUS_TABLE + 3] - 1;		
+	[SYSTEM_STATUS_TABLE + 2] = [SYSTEM_STATUS_TABLE + 2] - 1;		
+	
+	i=76;	
+	while(i <= 127) do
+		if([MEMORY_FREE_LIST + i] == 0) then
+			[MEMORY_FREE_LIST + i] = 1;	
+			break;
+		endif;
+	    i = i + 1;
+	endwhile;
+	
+	R0 = i;
+	breakpoint;
+	return;
+endif;
+
+
+if(fn == RELEASE_PAGE) then
+	alias page_num R2;
+	alias j R4;
+
+	[MEMORY_FREE_LIST + page_num] = [MEMORY_FREE_LIST + page_num] - 1;		
+	if([MEMORY_FREE_LIST + page_num] == 0) then
+		[SYSTEM_STATUS_TABLE + 2] = [SYSTEM_STATUS_TABLE + 2] + 1;
+	endif;
+
+	j = 0;
+	while(j<16) do	
+		if([PROCESS_TABLE + j*16 + 4] == WAIT_MEM) then
+			[PROCESS_TABLE + j*16 + 4] = READY;
+		endif;
+	j = j + 1;
+	endwhile;
+	breakpoint;
+	return;
+endif;
+

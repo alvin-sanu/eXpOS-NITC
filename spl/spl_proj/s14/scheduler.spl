@@ -5,8 +5,6 @@ alias curr R3;
 alias count R4;
 alias temp_pt R5;
 alias new_process_table R6;
-breakpoint;
-
 multipush(BP);
 
 currentPID = [SYSTEM_STATUS_TABLE+1];
