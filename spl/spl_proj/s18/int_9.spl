@@ -1,0 +1,140 @@
+breakpoint;
+
+[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 9] = 9;
+
+
+alias userSP R0;
+userSP = SP;
+
+[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 13] = userSP;
+SP = [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 11]*512-1;
+
+alias filename R1;
+alias inode_ind R2;
+alias temp R3;
+alias user_area R4;
+alias pid R5;
+
+pid = [SYSTEM_STATUS_TABLE +1];
+
+filename = [[PTBR + 2*((userSP - 4)/512)]*512 + (userSP - 4)%512];
+
+temp = 1;
+while(temp < MAX_FILE_NUM) do
+    if([INODE_TABLE + temp*16 + 1]==filename && [INODE_TABLE + temp*16 + 0]==3)then 
+        inode_ind = temp;
+        break;
+    endif;
+    temp = temp +1;
+endwhile;
+
+if(temp == 60) then
+	[[PTBR + 2*((userSP - 1)/512)]*512 + (userSP - 1)%512] = -1;
+	SP = userSP;
+	[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 9] = 0;
+	ireturn;
+endif;
+
+multipush(R0,R1,R2,R3,R5);
+R2 = pid;
+R1 = 3; //exit process fn = 3
+call MOD_1;
+multipop(R0,R1,R2,R3,R5);
+
+user_area = [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 11];
+[MEMORY_FREE_LIST + user_area] = [MEMORY_FREE_LIST + user_area] + 1;
+[SYSTEM_STATUS_TABLE + 2] = [SYSTEM_STATUS_TABLE + 2] - 1;
+
+SP = user_area*512 - 1;	
+
+temp = 0;
+while(temp<8) do
+    [user_area*512 + 496 + temp*2] = -1;
+    temp = temp + 1;
+endwhile;
+
+[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 4] = RUNNING;		
+[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 7] = inode_ind;
+
+//setting up the page table
+
+PTBR = PAGE_TABLE_BASE + [SYSTEM_STATUS_TABLE + 1]*20;
+[PTBR + 0] = 63;
+[PTBR + 1] = "0100";
+[PTBR + 2] = 64;
+[PTBR + 3] = "0100";
+
+[PTBR+4] = -1;
+[PTBR+5] = "0000";
+[PTBR+6] = -1;
+[PTBR+7] = "0000";
+
+[PTBR+8] = -1;
+[PTBR+9] = "0000";
+[PTBR+10] = -1;
+[PTBR+11] = "0000";
+[PTBR+12] = -1;
+[PTBR+13] = "0000";
+[PTBR+14] = -1;
+[PTBR+15] = "0000";
+
+multipush(R0,R1,R2,R3,R4,R5);
+
+R1 = 1;
+call MEMORY_MANAGER;
+[PTBR + 16] = R0;
+[PTBR + 17] = "0110";
+R1 = 1;
+call MEMORY_MANAGER;
+[PTBR + 18] = R0;
+[PTBR + 19] = "0110";
+
+R1 = 1;
+call MEMORY_MANAGER;
+[PTBR + 4] = R0;
+[PTBR + 5] = "0110";
+
+R1 = 1;
+call MEMORY_MANAGER;
+[PTBR + 6] = R0;
+[PTBR + 7] = "0110";
+
+multipop(R0,R1,R2,R3,R4,R5);
+
+temp = 0;
+while(temp<4) do
+    if([INODE_TABLE + inode_ind*16 + 8 + temp]!=-1) then
+        multipush(R0,R1,R2,R3,R4,R5);
+        R1 = 1;
+        call MEMORY_MANAGER;
+        alias freepage R6;
+        freepage = R0;
+        multipop(R0,R1,R2,R3,R4,R5);
+        [PTBR + 8 + temp*2] = freepage;
+        [PTBR + 8 + temp*2 + 1] = "0100";
+
+        //loadi(freepage,[INODE_TABLE + inode_ind*16 + 8 + temp]);
+
+        multipush(R0, R1, R2, R3, R4, R5, R6, R7);
+
+        
+        //be careful here as the order matters, we overwrite some of the variables... (R3 == temp)
+        R4 = [INODE_TABLE + inode_ind * 16 + 8 + temp];
+        R3 = [PTBR + 8 + temp*2];
+        R2 = [SYSTEM_STATUS_TABLE + 1];
+        R1 = 2;
+
+        call MOD_4;
+        
+        multipop(R0, R1, R2, R3, R4, R5, R6, R7);
+    else    
+        break;
+    endif;
+    temp = temp + 1;
+endwhile;
+
+[[PTBR + 16]*512] = [[PTBR + 8]*512 + 1];
+SP = 8 * 512;
+[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 9] = 0;
+
+ireturn;
