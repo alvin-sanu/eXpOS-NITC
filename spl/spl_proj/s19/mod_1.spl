@@ -33,7 +33,6 @@ if(fn == 3) then
     return;
 endif;
 
-//FREE_PAGE_TABLE
 if(fn == 4) then
     alias pt R3;
 
@@ -44,7 +43,7 @@ if(fn == 4) then
 	[pt + 2] = -1;
 	[pt + 3] = "0000";
     
-	//release heap,code and stack, in the page table..
+    //freeing the elements of page table and RELEASE_PAGE if valid
     alias temp R4;
     temp = 2;		
 	while(temp<10) do
@@ -60,20 +59,27 @@ if(fn == 4) then
 	    temp = temp + 1;
 	endwhile;
 
-	temp=2;
+    //calling RELEASE_BLOCK on mem pages of heap and stack (temp, for swapping) and invalidating the DISK_MAP_TABLE at the same time
+    temp=2;
 	while(temp<10) do
-	if([DISK_MAP_TABLE + currentPID*10 + temp] != -1) then
-		if(temp<4 || temp>7) then
-			multipush(R1, R2, R4, R5);
-			R1 = 4;
-			R3 = currentPID;
-			R2 = [DISK_MAP_TABLE + currentPID*10 + temp];
-			call MOD_2;
-			multipop(R1, R2, R4, R5);
-		endif;
-		[DISK_MAP_TABLE + currentPID*10 + temp] = -1;
-	endif;
-	i = i + 1;
-	endwhile
+        if([DISK_MAP_TABLE + pid*10 + temp] != -1) then
+            if(temp<4 || temp>7) then
+                
+                multipush(R1, R2, R3, R4);
+                R1 = 4;
+                R3 = pid;
+                R2 = [DISK_MAP_TABLE + pid*10 + temp];
+                call MOD_2;
+                multipop(R1, R2, R3, R4);
+
+
+            endif;
+
+            [DISK_MAP_TABLE + pid*10 + temp] = -1;
+
+        endif;
+        temp = temp + 1;
+	endwhile;
+    
     return;
 endif;

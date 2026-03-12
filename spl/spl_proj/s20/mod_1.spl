@@ -1,0 +1,104 @@
+alias fn R1;
+alias pid R2;
+//get pcb entry
+if(fn==1) then
+    alias new_pid R0;
+    new_pid = 1;
+    while(new_pid < 16 && [PROCESS_TABLE + new_pid*16 + 4]!=TERMINATED) do
+        new_pid = new_pid + 1;
+    endwhile;
+
+    if(new_pid > 15) then
+        new_pid = -1;
+        return;
+    endif;
+
+    [PROCESS_TABLE + new_pid*16 + 1] = new_pid;
+	[PROCESS_TABLE + new_pid*16 + 4] = ALLOCATED;
+	[PROCESS_TABLE + new_pid*16 + 14] = PAGE_TABLE_BASE + 20*new_pid;
+	[PROCESS_TABLE + new_pid*16 + 15] = 10;
+	return;
+endif;
+
+//fre user page area
+if(fn == 2) then
+    alias user_area R3;
+    user_area = [PROCESS_TABLE + pid*16 + 11];
+    multipush(R1,R2,R3);
+        R1 = 2; //release page
+        R2 = user_area;
+        call MOD_2;
+    multipop(R1,R2,R3);
+    return;
+endif;
+
+//EXIT_PROCESS
+if(fn == 3) then
+
+    multipush(R0, R1, R2, R3);		
+	R1 = 4; //free page table
+	R2 = pid;	
+	call MOD_1;
+	multipop(R0, R1, R2, R3);
+
+	multipush(R0, R1, R2, R3);	
+	R1 = 2; //free user area
+	R2 = pid;		
+	call MOD_1;
+	multipop(R0, R1, R2, R3);
+	
+	[PROCESS_TABLE + pid*16 + 4] = TERMINATED;
+
+    return;
+endif;
+
+if(fn == 4) then
+    alias pt R3;
+
+    pt = [PROCESS_TABLE + pid*16 + 14];
+
+    [pt + 0] = -1;		
+	[pt + 1] = "0000";
+	[pt + 2] = -1;
+	[pt + 3] = "0000";
+    
+    //freeing the elements of page table and RELEASE_PAGE if valid
+    alias temp R4;
+    temp = 2;		
+	while(temp<10) do
+		if([pt + (temp*2)] != -1) then
+			multipush(R0, R1, R2, R3, R4);
+			R1 = RELEASE_PAGE;
+			R2 = [pt + temp*2];
+			call MOD_2;
+			multipop(R0, R1, R2, R3, R4);
+		endif;
+		[pt + temp*2] = -1;
+		[pt + temp*2 + 1] = "0000";
+	    temp = temp + 1;
+	endwhile;
+
+    //calling RELEASE_BLOCK on mem pages of heap and stack (temp, for swapping) and invalidating the DISK_MAP_TABLE at the same time
+    temp=2;
+	while(temp<10) do
+        if([DISK_MAP_TABLE + pid*10 + temp] != -1) then
+            if(temp<4 || temp>7) then
+                
+                multipush(R1, R2, R3, R4);
+                R1 = 4;
+                R3 = pid;
+                R2 = [DISK_MAP_TABLE + pid*10 + temp];
+                call MOD_2;
+                multipop(R1, R2, R3, R4);
+
+
+            endif;
+
+            [DISK_MAP_TABLE + pid*10 + temp] = -1;
+
+        endif;
+        temp = temp + 1;
+	endwhile;
+    
+    return;
+endif;

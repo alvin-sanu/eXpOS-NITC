@@ -1,0 +1,139 @@
+[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 9] = 8;
+
+//SAVE AND SWITCH
+[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 13] = SP;
+SP = [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 11]*512 -1;
+
+alias new_pid R0;
+alias curr_pid R1;
+alias pt R2;
+alias userSP R3;
+alias temp R4;
+
+
+curr_pid = [SYSTEM_STATUS_TABLE + 1];
+pt = [PROCESS_TABLE + curr_pid*16 + 14];
+userSP = [PROCESS_TABLE + curr_pid*16 + 13];
+
+//calling get pcb function
+multipush(R1, R2, R3);
+R1 = 1;
+call MOD_1;
+multipop(R1, R2, R3);
+
+//if no spce for new process...
+if(new_pid == -1) then
+    [[pt + 2*((userSP-1)/512)]*512 + ((userSP-1)%512)] = -1;
+    [PROCESS_TABLE + curr_pid*16 + 9] = 0;
+    SP = userSP;
+    ireturn;
+endif;
+
+//allocating heap pages to the parent, we only neec to check the 2nd page because in the execption handler if the system raises the exception on the 2nd page it automatically allocates for both....
+//this is the only case that happens...
+if([pt+4] == -1) then
+
+  multipush(R0, R1, R2, R3);
+  R1 = 1;
+  call MOD_2;
+  R4 = R0;
+  multipop(R0, R1, R2, R3);
+
+  [pt+4] = R4;
+  [pt+5] = "0110";
+
+  multipush(R0, R1, R2, R3);
+  R1 = 1;
+  call MOD_2;
+  R4 = R0;
+  multipop(R0, R1, R2, R3);
+
+  [pt+6] = R4;
+  [pt+7] = "0110";
+endif;
+
+
+//initialize the process table for the child process
+[PROCESS_TABLE + new_pid*16 + 0] = 0;
+[PROCESS_TABLE + new_pid*16 + 2] = curr_pid;
+[PROCESS_TABLE + new_pid*16 + 3] = [PROCESS_TABLE + curr_pid*16 + 3];
+[PROCESS_TABLE + new_pid*16 + 4] = CREATED;
+[PROCESS_TABLE + new_pid*16 + 6] = [PROCESS_TABLE + curr_pid*16 + 6];
+[PROCESS_TABLE + new_pid*16 + 7] = [PROCESS_TABLE + curr_pid*16 + 7];
+[PROCESS_TABLE + new_pid*16 + 9] = 0;
+[PROCESS_TABLE + new_pid*16 + 10] = [PROCESS_TABLE + curr_pid*16 + 10];
+[PROCESS_TABLE + new_pid*16 + 12] = 0;
+[PROCESS_TABLE + new_pid*16 + 13] = [PROCESS_TABLE + curr_pid*16 + 13];
+
+//getting new pages 2 for stack, 1 for user area page, here we are assuming the module function doesnt use R4,R6 or R7.. issues can arise here...
+multipush(R0, R1, R2, R3);
+R1 = 1;
+call MOD_2;
+R4 = R0;
+
+R1 = 1;
+call MOD_2;
+R6 = R0;
+
+R1 = 1;
+call MOD_2;
+R7 = R0;
+multipop(R0, R1, R2, R3);
+
+//save user area page
+[PROCESS_TABLE + new_pid*16 + 11] = R4;
+
+//copying the per process resource table in the user area page...
+temp=1;
+while(temp<17) do
+    [([PROCESS_TABLE + new_pid*16 + 11]+1) *512 -temp] = [([PROCESS_TABLE + curr_pid*16 + 11]+1)*512 -temp];
+    temp = temp + 1;
+endwhile;
+
+//copying the per process disk map table, stack pages will be invalid (why?)
+temp=0;
+while(temp<10) do
+  [DISK_MAP_TABLE + new_pid*10 + temp] = [DISK_MAP_TABLE + curr_pid*10 + temp];
+  temp = temp + 1;
+endwhile;
+
+
+//
+alias child_page_table R5;
+child_page_table = [PROCESS_TABLE + new_pid*16 + 14];
+
+//copying the contents of the parents page table upto stack and updating the memory free list...
+temp=0;
+breakpoint;
+while(temp<16) do
+    [child_page_table + temp] = [pt + temp];
+    if(temp%2 == 0) then
+        if([pt + temp] != -1) then
+            [MEMORY_FREE_LIST + [pt + temp]] = [MEMORY_FREE_LIST + [pt + temp]] + 1;
+        endif;
+    endif;
+    temp = temp + 1;
+endwhile;
+
+//setting stack pages
+[child_page_table + 16] = R6;
+[child_page_table + 17] = [pt + 17];
+
+[child_page_table + 18] = R7;
+[child_page_table + 19] = [pt + 19];
+
+//copying the contents of the stack pages...
+temp=0;
+while(temp<512) do
+    [[child_page_table + 16]*512 + temp] = [[pt + 16]*512 + temp];
+    [[child_page_table + 18]*512 + temp] = [[pt + 18]*512 + temp];
+    temp=temp+1;
+endwhile;
+
+[[PROCESS_TABLE + new_pid*16 + 11]*512] = BP;
+
+[[pt + 2*(userSP-1)/512] *512 + ((userSP-1)%512)] = new_pid;
+[[child_page_table + 2*(userSP-1)/512] *512 + ((userSP-1)%512)] = 0;
+[PROCESS_TABLE + curr_pid*16 + 9] = 0;
+SP = userSP;
+ireturn;

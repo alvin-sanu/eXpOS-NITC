@@ -3,6 +3,7 @@ alias currentPID R2;
 alias pageNum R3;
 alias blockNum R4;
 
+//disk load function
 if(functionNum == 2) then
 
     //acquire disk
